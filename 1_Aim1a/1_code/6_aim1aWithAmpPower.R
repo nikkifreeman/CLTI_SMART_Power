@@ -1,11 +1,14 @@
-# 3_aim1aPower.R
+# Aim 1a with amputations power
 # Author: Nikki Freeman
-# Last modified: 25 April 2022
+# Last modified: 9 May 2022
 
 # Preamble ---------------------------------------------------------------------
 # Code to generate the simulation analysis for Aim 1a
 #
 # Required packages: tidyverse, tmle, SuperLearner, tictoc
+
+# Command line arguments -------------------------------------------------------
+command_args <- commandArgs(trailingOnly = TRUE)
 
 # Packages and scripts ---------------------------------------------------------
 library(tidyverse)
@@ -16,9 +19,11 @@ library(SuperLearner)
 if(str_detect(getwd(), "resubmission")){
   source("./1_Aim1a/1_code/1_generateSampleAim1a.R")
   source("./1_Aim1a/1_code/0_universalParameters.R")
+  source("./1_Aim1a/1_code/4_generateSampleWithAmpAim1a.R")
 } else{
   source("1_generateSampleAim1a.R")
   source("0_universalParameters.R")
+  source("4_generateSampleWithAim1a.R")
 }
 
 # Calculate the power for different values of the parameters -------------------
@@ -27,22 +32,25 @@ n_out <- p_out <- l_out <- psi_out <- var_psi_out <- CI_lower_out <- CI_upper_ou
 
 set.seed(10222019) # Muffie's birthday
 # n keeps track of the sample size
-for(n in N){
+for(n in command_args[1]){
   # p keeps track of the parameter values
   for(p in 1:nrow(parameterGrid)){
     print(c(n,p))
     # l keeps track of the number of simulated data sets
     for(l in 1:L){
       # Generate a data set
-      simData <- simulateDataAim1a_exponential(
+      simData <- simulateDataAim1aWithAmp_exponential(
         N = n, p_trt1 = 0.5, 
         mort0 = parameterGrid$mort2yr0[p], 
         mort1 = parameterGrid$mort2yr1[p], 
         recur0 = parameterGrid$woundRecur0[p], 
         recur1 = parameterGrid$woundRecur1[p], 
+        amp0 = command_args[2],
+        amp1 = command_args[3],
         C_L = C_L, 
         beta_mort = rep(0, 4), 
-        beta_recur = rep(0, 4)) %>%
+        beta_recur = rep(0, 4),
+        beta_amp = rep(0, 4)) %>%
         mutate(observed = 1 - ltfu)
       
       # Calculate ATE
@@ -69,4 +77,6 @@ out <- data.frame(n = n_out, p = p_out, l = l_out,
                   psi = psi_out, var_psi = var_psi_out,
                   CI_lower = CI_lower_out, CI_upper = CI_upper_out,
                   pvalue = pvalue_out)
-readr::write_csv(x = out, file = "../2_pipeline/3_aim1aPower.csv")
+outFileName <- paste0("../2_pipeline/6_aim1aWithAmpPower_n", command_args[1], 
+                      "_", round(command_args[2]*100), "_", round(command_args[3]*100), ".csv")
+readr::write_csv(x = out, file = outFileName)

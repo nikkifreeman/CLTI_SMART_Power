@@ -69,7 +69,7 @@ generateEventTime_exponential <- function(S, t, expLinPred){
 #' @param mort0 real in (0, 1); Pr(2 year mortality) in arm 0
 #' @param mort1 real in (0, 1); Pr(2 year mortality) in arm 1
 #' @param recur0 real in (0, 1); Pr(recurrence in 2 years) in arm 0
-#' @param recur1 real in (0, 1); Pr(recurrence in 2 years) in arm 0
+#' @param recur1 real in (0, 1); Pr(recurrence in 2 years) in arm 1
 #' @param C_L real in (0, 1); Pr(ltfu over the study period)
 #' @param beta_mort real[4]; coefficients for X1:X4 in the TTE mortality 
 #' @param beta_recur real[4]; coefficients for X1:X4 in the TTE recurrence
@@ -96,7 +96,10 @@ simulateDataAim1a_exponential <- function(N, p_trt1, mort0, mort1, recur0, recur
     mutate(timeToHealSecondWound = truncnorm::rtruncnorm(1, a = 0.5*30, mean = 4.5*30, sd = 2*30)) %>%
     ungroup() %>%
     mutate(ltfu = if_else(id %in% ltfu_ids, 1, 0)) %>%
-    mutate(firstWoundHealingDay = timeToHealFirstWound) %>%
+    mutate(firstWoundHealingDay = timeToHealFirstWound) %>% 
+    rowwise() %>%
+    mutate(timeToRecur = max(timeToRecur, firstWoundHealingDay + 1)) %>%
+    ungroup() %>%
     mutate(secondWoundHealingDay = timeToRecur + timeToHealSecondWound) %>%
     mutate(outcome_qual = if_else(timeToDeath <= 365*2 & 
                                     timeToDeath <= firstWoundHealingDay, 
