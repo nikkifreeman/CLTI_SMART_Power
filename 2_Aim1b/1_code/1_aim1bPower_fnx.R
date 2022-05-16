@@ -186,8 +186,10 @@ getAnalysisData <- function(replicatedData){
 #'
 #' @examples
 doOneSimRun <- function(studySize, designProbs, responseProbRange,
-                        dominantRegime, mort2yr_dom, recur2yr_dom,
-                        mort2yr_notDom, recur2yr_notDom, censorRate){
+                        dominantRegime, mort2yr_dom,
+                        recur2yr_dom, amp2yr_dom,
+                        mort2yr_notDom, recur2yr_notDom, 
+                        amp2yr_notDom, censorRate){
   # Generate simulated observed data -------------------------------------------
   obsData <- generateObserved(studySize = studySize, 
                               designProbs = designProbs, 
@@ -195,8 +197,10 @@ doOneSimRun <- function(studySize, designProbs, responseProbRange,
                               dominantRegime = dominantRegime, 
                               mort2yr_dom = mort2yr_dom, 
                               recur2yr_dom = recur2yr_dom,
+                              amp2yr_dom = amp2yr_dom,
                               mort2yr_notDom = mort2yr_notDom, 
                               recur2yr_notDom = recur2yr_notDom, 
+                              amp2yr_notDom = amp2yr_notDom,
                               censorRate = censorRate)
   
   # Prepare for analysis -------------------------------------------------------

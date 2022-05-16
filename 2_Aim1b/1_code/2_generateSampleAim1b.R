@@ -10,8 +10,10 @@ library(tidyverse)
 # Generate patients for each trajectory (trajectory, or pathway, 1-11) ---------
 # Draw response probs
 generateObserved <- function(studySize, designProbs, responseProbRange,
-                             dominantRegime, mort2yr_dom, recur2yr_dom,
-                             mort2yr_notDom, recur2yr_notDom, censorRate){
+                             dominantRegime, mort2yr_dom, 
+                             recur2yr_dom, amp2yr_dom,
+                             mort2yr_notDom, recur2yr_notDom, 
+                             amp2yr_notDom, censorRate){
   # Draw the response probability
   p1 <- runif(1, min = responseProbRange$p1[1], max = responseProbRange$p1[2])
   p2 <- runif(1, min = responseProbRange$p2[1], max = responseProbRange$p2[2])
@@ -108,10 +110,17 @@ generateObserved <- function(studySize, designProbs, responseProbRange,
   # Generate outcomes for the trajectories consistent with the dominant regime ----
   trajectoriesConsistWithDomRegime <- trajectories %>%
     filter(!!sym(paste0("R", dominantRegime)) == 1)
+  
   # Death is consistent for every trajectory, so calculate time of death for everyone
   timeToDeath_dom <- 365*2*(log(runif(n = nrow(trajectoriesConsistWithDomRegime)))/log(1-mort2yr_dom))
   trajectoriesConsistWithDomRegime <- trajectoriesConsistWithDomRegime %>%
     mutate(timeToDeath = timeToDeath_dom)
+  
+  # Amputation is consistent for every trajectory, so calculate time of amp for everyone
+  timeToAmp_dom <- 365*2*(log(runif(n = nrow(trajectoriesConsistWithDomRegime)))/log(1-amp2yr_dom))
+  trajectoriesConsistWithDomRegime <- trajectoriesConsistWithDomRegime %>%
+    mutate(timeToAmp = timeToAmp_dom)
+  
   # Wound recurrence is not consistent with trajectories 1 and 9
   trajectoriesConsistWithDomRegime_neverRecur <- trajectoriesConsistWithDomRegime %>%
     filter((trajectory %in% c(1, 9))) %>%
@@ -120,14 +129,17 @@ generateObserved <- function(studySize, designProbs, responseProbRange,
     rowwise() %>%
     mutate(timeToHealFirstWound = truncnorm::rtruncnorm(1, a = 0.5*30, mean = 2.5*30, sd = 2*30)) %>%
     ungroup() %>%
-    select(trajectory, A1, A2, A3, R1, R2, R3, R4, R5, R6, timeToDeath, 
+    select(trajectory, A1, A2, A3, R1, R2, R3, R4, R5, R6, timeToDeath, timeToAmp,
            timeToRecur, timeToHealFirstWound, timeToHealSecondWound) 
+  
   # Deal with the trajectories that can have a recurrence
   trajectoriesConsistWithDomRegime_canRecur <- trajectoriesConsistWithDomRegime %>%
     # Trajectories other than 1 and 9 can have recurrences
     filter(!(trajectory %in% c(1, 9)))
+  
   # Time to recurrence for those that can recur
   timeToRecur_dom <- 365*2*(log(runif(n = nrow(trajectoriesConsistWithDomRegime_canRecur)))/log(1-recur2yr_dom))
+  
   # Get time to heal
   trajectoriesConsistWithDomRegime_canRecur <- trajectoriesConsistWithDomRegime_canRecur %>%
     mutate(timeToRecur = timeToRecur_dom) %>%
@@ -135,7 +147,7 @@ generateObserved <- function(studySize, designProbs, responseProbRange,
     mutate(timeToHealFirstWound = truncnorm::rtruncnorm(1, a = 0.5*30, mean = 2.5*30, sd = 2*30)) %>%
     mutate(timeToHealSecondWound = truncnorm::rtruncnorm(1, a = 0.5*30, mean = 2.5*30, sd = 2*30)) %>%
     ungroup() %>%
-    select(trajectory, A1, A2, A3, R1, R2, R3, R4, R5, R6, timeToDeath, 
+    select(trajectory, A1, A2, A3, R1, R2, R3, R4, R5, R6, timeToDeath, timeToAmp,
            timeToRecur, timeToHealFirstWound, timeToHealSecondWound)
   # Combine trajectories consistent with dominant regime
   trajectoriesConsistWithDomRegime <- bind_rows(trajectoriesConsistWithDomRegime_neverRecur, 
@@ -144,10 +156,17 @@ generateObserved <- function(studySize, designProbs, responseProbRange,
   # Generate outcomes for the trajectories not consistent with the dominant regime -----
   trajectoriesNOTConsistWithDomRegime <- trajectories %>%
     filter(!!sym(paste0("R", dominantRegime)) == 0)
+  
   # Death is consistent for every trajectory, so calculate time of death for everyone
   timeToDeath_notDom <- 365*2*(log(runif(n = nrow(trajectoriesNOTConsistWithDomRegime)))/log(1-mort2yr_notDom))
   trajectoriesNOTConsistWithDomRegime <- trajectoriesNOTConsistWithDomRegime %>%
     mutate(timeToDeath = timeToDeath_notDom)
+  
+  # Amputation is consistent for every trajectory, so calculate time of amp for everyone
+  timeToAmp_notDom <- 365*2*(log(runif(n = nrow(trajectoriesNOTConsistWithDomRegime)))/log(1-amp2yr_notDom))
+  trajectoriesNOTConsistWithDomRegime <- trajectoriesNOTConsistWithDomRegime %>%
+    mutate(timeToAmp = timeToAmp_notDom)
+  
   # Wound recurrence is not consistent with trajectories 1 and 9
   trajectoriesNOTConsistWithDomRegime_neverRecur <- trajectoriesNOTConsistWithDomRegime %>%
     filter((trajectory %in% c(1, 9))) %>%
@@ -156,14 +175,17 @@ generateObserved <- function(studySize, designProbs, responseProbRange,
     rowwise() %>%
     mutate(timeToHealFirstWound = truncnorm::rtruncnorm(1, a = 0.5*30, mean = 2.5*30, sd = 2*30)) %>%
     ungroup() %>%
-    select(trajectory, A1, A2, A3, R1, R2, R3, R4, R5, R6, timeToDeath, 
+    select(trajectory, A1, A2, A3, R1, R2, R3, R4, R5, R6, timeToDeath, timeToAmp,
            timeToRecur, timeToHealFirstWound, timeToHealSecondWound) 
+  
   # Deal with the trajectories that can have a recurrence
   trajectoriesNOTConsistWithDomRegime_canRecur <- trajectoriesNOTConsistWithDomRegime %>%
     # Trajectories other than 1 and 9 can have recurrences
     filter(!(trajectory %in% c(1, 9)))
+  
   # Time to recurrence for those that can recur
   timeToRecur_notDom <- 365*2*(log(runif(n = nrow(trajectoriesNOTConsistWithDomRegime_canRecur)))/log(1-recur2yr_notDom))
+  
   # Get time to heal
   trajectoriesNOTConsistWithDomRegime_canRecur <- trajectoriesNOTConsistWithDomRegime_canRecur %>%
     mutate(timeToRecur = timeToRecur_notDom) %>%
@@ -171,67 +193,167 @@ generateObserved <- function(studySize, designProbs, responseProbRange,
     mutate(timeToHealFirstWound = truncnorm::rtruncnorm(1, a = 0.5*30, mean = 2.5*30, sd = 2*30)) %>%
     mutate(timeToHealSecondWound = truncnorm::rtruncnorm(1, a = 0.5*30, mean = 2.5*30, sd = 2*30)) %>%
     ungroup() %>%
-    select(trajectory, A1, A2, A3, R1, R2, R3, R4, R5, R6, timeToDeath, 
+    select(trajectory, A1, A2, A3, R1, R2, R3, R4, R5, R6, timeToDeath, timeToAmp,
            timeToRecur, timeToHealFirstWound, timeToHealSecondWound)
+  
   # Combine trajectories consistent with dominant regime
   trajectoriesNOTConsistWithDomRegime <- bind_rows(trajectoriesNOTConsistWithDomRegime_neverRecur, 
                                                 trajectoriesNOTConsistWithDomRegime_canRecur)
   
   # Combine get wound-free alive days and add censoring ------------------------
-  bind_rows(trajectoriesConsistWithDomRegime, trajectoriesNOTConsistWithDomRegime) %>%
-    mutate(firstWoundHealingDay = timeToHealFirstWound,
-           secondWoundHealingDay = timeToRecur + timeToHealSecondWound) %>%
-    mutate(outcome_qual = if_else(timeToDeath <= 365*2 & 
-                                    timeToDeath <= firstWoundHealingDay, 
-                                  "died before healing first wound", "?"),
-           outcome_qual = if_else(outcome_qual == "?" & timeToDeath <= 365*2 & 
-                                    timeToDeath <= timeToRecur, 
-                                  "healed first wound, died before recurrence",
-                                  outcome_qual),
-           outcome_qual = if_else(outcome_qual == "?" & timeToDeath > 365*2 & 
-                                    timeToRecur > 365*2 & 
-                                    firstWoundHealingDay <= 365*2, 
-                                  "healed first wound, no recurrence, alive", 
-                                  outcome_qual),
-           outcome_qual = if_else(outcome_qual == "?" & timeToDeath <= 365*2 & 
-                                    timeToDeath > firstWoundHealingDay & 
-                                    timeToDeath > timeToRecur & 
-                                    timeToDeath <= secondWoundHealingDay, 
-                                  "healed first wound, recurred, died before healing second wound", 
-                                  outcome_qual),
-           outcome_qual = if_else(outcome_qual == "?" & timeToDeath <= 365*2 & 
-                                    timeToDeath > firstWoundHealingDay & 
-                                    timeToDeath > timeToRecur & 
-                                    timeToDeath > secondWoundHealingDay, 
-                                  "healed first wound, recurred, healed second wound, died", 
-                                  outcome_qual),
-           outcome_qual = if_else(outcome_qual == "?" & timeToDeath > 365*2 & 
-                                    timeToDeath > firstWoundHealingDay & 
-                                    timeToDeath > timeToRecur & 
-                                    secondWoundHealingDay > 365*2, 
-                                  "healed first, recurred, didn't heal second",  
-                                  outcome_qual),
-           outcome_qual = if_else(outcome_qual == "?" & timeToDeath > 365*2 & 
-                                    timeToDeath > firstWoundHealingDay & 
-                                    timeToDeath > timeToRecur & 
-                                    secondWoundHealingDay <= 365*2, 
-                                  "healed first, recurred, healed second", 
-                                  outcome_qual))  %>%
-    mutate(woundFreeAliveDays = if_else(outcome_qual == "died before healing first wound", 0, -100),
-           woundFreeAliveDays = if_else(outcome_qual == "healed first wound, died before recurrence", 
-                                        timeToDeath - firstWoundHealingDay, woundFreeAliveDays),
-           woundFreeAliveDays = if_else(outcome_qual == "healed first wound, no recurrence, alive", 
-                                        365*2 - firstWoundHealingDay, woundFreeAliveDays),
-           woundFreeAliveDays = if_else(outcome_qual == "healed first wound, recurred, died before healing second wound", 
-                                        timeToRecur - firstWoundHealingDay, woundFreeAliveDays),
-           woundFreeAliveDays = if_else(outcome_qual == "healed first wound, recurred, healed second wound, died", 
-                                        timeToDeath - timeToHealFirstWound - timeToHealSecondWound, woundFreeAliveDays),
-           woundFreeAliveDays = if_else(outcome_qual == "healed first, recurred, didn't heal second", 
-                                        timeToRecur - firstWoundHealingDay, woundFreeAliveDays),
-           woundFreeAliveDays = if_else(outcome_qual == "healed first, recurred, healed second", 
-                                        365*2 - timeToHealFirstWound - timeToHealSecondWound, woundFreeAliveDays)) %>%
+  trajectoriesWithTTE <- bind_rows(trajectoriesConsistWithDomRegime, trajectoriesNOTConsistWithDomRegime) %>%
+    mutate(firstWoundHealingDay = timeToHealFirstWound) %>%
+    rowwise() %>%
+    mutate(timeToRecur = max(timeToRecur, firstWoundHealingDay + 1)) %>%
+    ungroup() %>%
+    mutate(secondWoundHealingDay = timeToRecur + timeToHealSecondWound) %>%
+    mutate(endOfStudy = 365*2) %>%
     mutate(id = 1:studySize, .before = "trajectory")  %>%
     mutate(ltfu = if_else(id %in% sample(1:studySize, size = round(studySize*censorRate), replace = FALSE), 1, 0))
+  
+  # for convenience, make event1:event5 variables
+  sequences <- trajectoriesWithTTE %>%
+    pivot_longer(cols = c(timeToDeath, timeToAmp, timeToRecur,
+                          firstWoundHealingDay, secondWoundHealingDay, endOfStudy),
+                 names_to = "events", values_to = "day") %>%
+    group_by(id) %>% arrange(id, day) %>% select(id, events, day) %>% ungroup() %>%
+    group_by(id) %>%
+    summarise(sequence = paste(events, collapse = "-")) %>%
+    mutate(event1 = str_extract(sequence, "^\\w*(?=-)")) %>%
+    mutate(sequence_trimmed = str_remove(sequence, "^\\w*-")) %>%
+    mutate(event2 = str_extract(sequence_trimmed, "^\\w*(?=-)")) %>%
+    mutate(sequence_trimmed = str_remove(sequence_trimmed, "^\\w*-")) %>%
+    mutate(event3 = str_extract(sequence_trimmed, "\\w*(?=-)")) %>%
+    mutate(sequence_trimmed = str_remove(sequence_trimmed, "^\\w*-")) %>%
+    mutate(event4 = str_extract(sequence_trimmed, "\\w*(?=-)")) %>%
+    mutate(sequence_trimmed = str_remove(sequence_trimmed, "^\\w*-")) %>%
+    mutate(event5 = str_extract(sequence_trimmed, "\\w*(?=-)")) %>%
+    mutate(sequence_trimmed = str_remove(sequence_trimmed, "\\w*-")) %>%
+    mutate(event6 = str_extract(sequence_trimmed, "^\\w*")) %>%
+    ungroup() %>%
+    select(-sequence_trimmed)
+  
+  
+  allDf <- left_join(trajectoriesWithTTE, sequences, by = "id")
+  
+  allDf %>%
+    # Characterize the outcomes
+    # The first event is one of the following: heal the first wound, die, amp, or end of study
+    mutate(outcome_qual = if_else(event1 == "timeToDeath",
+                                  "died before healing first wound and before study end",
+                                  "?")) %>%
+    mutate(outcome_qual = if_else(event1 == "eos",
+                                  "did not heal first wound, alive at study end",
+                                  outcome_qual)) %>%
+    mutate(outcome_qual = if_else(event1 == "timeToAmp" & timeToDeath <= endOfStudy,
+                                  "amp before healing first wound then died before study end",
+                                  outcome_qual)) %>%
+    mutate(outcome_qual = if_else(event1 == "timeToAmp" & timeToDeath > endOfStudy,
+                                  "amp before healing first wound, alive at study end",
+                                  outcome_qual)) %>%
+    # Of those that healed first wound, the second event is one of four events: die, amp, recur, or end of study
+    mutate(outcome_qual = if_else(event1 == "firstWoundHealingDay" &
+                                    event2 == "timeToDeath",
+                                  "healed first wound, died before recur and before study end",
+                                  outcome_qual)) %>%
+    mutate(outcome_qual = if_else(event1 == "firstWoundHealingDay" &
+                                    event2 == "endOfStudy",
+                                  "healed first wound, no recur, alive with limb at study end",
+                                  outcome_qual)) %>%
+    mutate(outcome_qual = if_else(event1 == "firstWoundHealingDay" &
+                                    event2 == "timeToAmp" &
+                                    timeToDeath <= endOfStudy,
+                                  "healed first wound, amp, died before study end",
+                                  outcome_qual)) %>%
+    mutate(outcome_qual = if_else(event1 == "firstWoundHealingDay" &
+                                    event2 == "timeToAmp" &
+                                    timeToDeath > endOfStudy,
+                                  "healed first wound, amp, alive at study end",
+                                  outcome_qual)) %>%
+    # Of those that recurred, the third event can only be one of: die, amp, heal, end of study
+    mutate(outcome_qual = if_else(event1 == "firstWoundHealingDay" &
+                                    event2 == "timeToRecur" &
+                                    event3 == "timeToDeath",
+                                  "healed first, recurred, died before healing second",
+                                  outcome_qual)) %>%
+    mutate(outcome_qual = if_else(event1 == "firstWoundHealingDay" &
+                                    event2 == "timeToRecur" &
+                                    event3 == "endOfStudy",
+                                  "healed, recurred, end of study before healing 2nd wound",
+                                  outcome_qual)) %>%
+    mutate(outcome_qual = if_else(event1 == "firstWoundHealingDay" &
+                                    event2 == "timeToRecur" &
+                                    event3 == "timeToAmp" &
+                                    timeToDeath <= endOfStudy,
+                                  "healed, recurred, amp before healing 2nd, dead at study end",
+                                  outcome_qual)) %>%
+    mutate(outcome_qual = if_else(event1 == "firstWoundHealingDay" &
+                                    event2 == "timeToRecur" &
+                                    event3 == "timeToAmp" &
+                                    timeToDeath > endOfStudy,
+                                  "healed, recurred, amp before healing 2nd, alive at study end",
+                                  outcome_qual)) %>%
+    # Of those the healed their recurrent wound, event 4 can only be one of: die, end of study, amp
+    mutate(outcome_qual = if_else(event1 == "firstWoundHealingDay" &
+                                    event2 == "timeToRecur" &
+                                    event3 == "secondWoundHealingDay" &
+                                    event4 == "timeToDeath",
+                                  "healed, recurred, healed, died",
+                                  outcome_qual)) %>%
+    mutate(outcome_qual = if_else(event1 == "firstWoundHealingDay" &
+                                    event2 == "timeToRecur" &
+                                    event3 == "secondWoundHealingDay" &
+                                    event4 == "endOfStudy",
+                                  "healed, recurred, healed, alive with limb at study end",
+                                  outcome_qual)) %>%
+    mutate(outcome_qual = if_else(event1 == "firstWoundHealingDay" &
+                                    event2 == "timeToRecur" &
+                                    event3 == "secondWoundHealingDay" &
+                                    event4 == "timeToAmp" &
+                                    timeToDeath <= endOfStudy,
+                                  "healed, recurred, healed, amp, died",
+                                  outcome_qual)) %>%
+    mutate(outcome_qual = if_else(event1 == "firstWoundHealingDay" &
+                                    event2 == "timeToRecur" &
+                                    event3 == "secondWoundHealingDay" &
+                                    event4 == "timeToAmp" &
+                                    timeToDeath > endOfStudy,
+                                  "healed, recurred, healed, amp, alive at study end",
+                                  outcome_qual)) %>%
+    # Calculate wound free alive days
+    mutate(woundFreeAliveDays = if_else(outcome_qual == "died before healing first wound and before study end",
+                                        0, -1000)) %>%
+    mutate(woundFreeAliveDays = if_else(outcome_qual == "did not heal first wound, alive at study end",
+                                        0, woundFreeAliveDays)) %>%
+    mutate(woundFreeAliveDays = if_else(outcome_qual == "amp before healing first wound then died before study end",
+                                        timeToDeath - timeToAmp, woundFreeAliveDays)) %>%
+    mutate(woundFreeAliveDays = if_else(outcome_qual == "amp before healing first wound, alive at study end",
+                                        endOfStudy - timeToAmp, woundFreeAliveDays)) %>%
+    mutate(woundFreeAliveDays = if_else(outcome_qual == "healed first wound, died before recur and before study end",
+                                        timeToDeath - firstWoundHealingDay, woundFreeAliveDays)) %>%
+    mutate(woundFreeAliveDays = if_else(outcome_qual == "healed first wound, no recur, alive with limb at study end",
+                                        endOfStudy - firstWoundHealingDay, woundFreeAliveDays)) %>%
+    mutate(woundFreeAliveDays = if_else(outcome_qual == "healed first wound, amp, died before study end",
+                                        timeToDeath - firstWoundHealingDay, woundFreeAliveDays)) %>%
+    mutate(woundFreeAliveDays = if_else(outcome_qual == "healed first wound, amp, alive at study end",
+                                        endOfStudy - firstWoundHealingDay, woundFreeAliveDays)) %>%
+    mutate(woundFreeAliveDays = if_else(outcome_qual == "healed first, recurred, died before healing second",
+                                        timeToRecur - firstWoundHealingDay, woundFreeAliveDays)) %>%
+    mutate(woundFreeAliveDays = if_else(outcome_qual == "healed, recurred, end of study before healing 2nd wound",
+                                        timeToRecur - firstWoundHealingDay, woundFreeAliveDays)) %>%
+    mutate(woundFreeAliveDays = if_else(outcome_qual == "healed, recurred, amp before healing 2nd, dead at study end",
+                                        (timeToRecur - firstWoundHealingDay) + (timeToDeath - timeToAmp), woundFreeAliveDays)) %>%
+    mutate(woundFreeAliveDays = if_else(outcome_qual == "healed, recurred, amp before healing 2nd, alive at study end",
+                                        (timeToRecur - firstWoundHealingDay) + (endOfStudy - timeToAmp), woundFreeAliveDays)) %>%
+    mutate(woundFreeAliveDays = if_else(outcome_qual == "healed, recurred, healed, died",
+                                        (timeToRecur - firstWoundHealingDay) + (timeToDeath - secondWoundHealingDay), woundFreeAliveDays)) %>%
+    mutate(woundFreeAliveDays = if_else(outcome_qual == "healed, recurred, healed, alive with limb at study end",
+                                        (timeToRecur - firstWoundHealingDay) + (endOfStudy - secondWoundHealingDay), woundFreeAliveDays)) %>%
+    mutate(woundFreeAliveDays = if_else(outcome_qual == "healed, recurred, healed, amp, died",
+                                        (timeToRecur - firstWoundHealingDay) + (timeToDeath - secondWoundHealingDay), woundFreeAliveDays)) %>%
+    mutate(woundFreeAliveDays = if_else(outcome_qual == "healed, recurred, healed, amp, alive at study end",
+                                        (timeToRecur - firstWoundHealingDay) + (endOfStudy - secondWoundHealingDay), woundFreeAliveDays))
+    
     
 
 }

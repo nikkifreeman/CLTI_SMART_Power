@@ -5,7 +5,12 @@
 #SBATCH -t 07-00:00:00
 #SBATCH --mem=10g
 #SBATCH -n 1
-#SBATCH --mail-type=BEGIN, END
+#SBATCH --mail-type=BEGIN,END
 #SBATCH --mail-user=nlbf@live.unc.edu
 
-Rscript 3_aim1bPower.R
+studySize=$1
+dominantRegime=$2
+amp0=$3
+amp1=$4
+
+Rscript 3_aim1bPower.R $studySize $dominantRegime $amp0 $amp1
