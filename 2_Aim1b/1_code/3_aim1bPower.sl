@@ -12,5 +12,6 @@ studySize=$1
 dominantRegime=$2
 amp0=$3
 amp1=$4
+gridRow=$5
 
-Rscript 3_aim1bPower.R $studySize $dominantRegime $amp0 $amp1
+Rscript 3_aim1bPower.R $studySize $dominantRegime $amp0 $amp1 $gridRow

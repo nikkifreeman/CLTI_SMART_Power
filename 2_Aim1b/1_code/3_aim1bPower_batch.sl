@@ -8,7 +8,10 @@ do
 		do
 			for amp1 in {0.2,0.25}
 			do
-				sbatch 3_aim1bPower.sl $studySize $dominantRegime $amp0 $amp1
+			  for gridRow in {1..60}
+			  do
+				  sbatch 3_aim1bPower.sl $studySize $dominantRegime $amp0 $amp1 $gridRow
+				done
 			done
 		done
 	done

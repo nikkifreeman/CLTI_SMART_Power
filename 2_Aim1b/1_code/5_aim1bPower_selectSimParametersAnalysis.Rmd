@@ -1,0 +1,115 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r, include = FALSE, message = FALSE, warning = FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+```
+
+```{r}
+simParameters1 <- readxl::read_xlsx("simulationParameters.xlsx")
+simParameters2 <- readxl::read_xlsx("simulationParameters2.xlsx")
+simParameters3 <- readxl::read_xlsx("simulationParameters3.xlsx")
+rawSim1 <- read_csv("../2_pipeline/4_aim1bPower_selectSimParameters.csv", show_col_types = FALSE)
+rawSim2 <- read_csv("../2_pipeline/4_aim1bPower_selectSimParameters2.csv", show_col_types = FALSE)
+rawSim3 <- read_csv("../2_pipeline/4_aim1bPower_selectSimParameters3.csv", show_col_types = FALSE)
+trueDelta1 <- read_csv("../2_pipeline/6_aim1b_trueDelta.csv", show_col_types = FALSE)
+trueDelta2 <- read_csv("../2_pipeline/6_aim1b_trueDelta2.csv", show_col_types = FALSE)
+trueDelta3 <- read_csv("../2_pipeline/6_aim1b_trueDelta2.csv", show_col_types = FALSE)
+```
+
+```{r}
+simParameters1 <- left_join(simParameters1, trueDelta1, 
+          by = c("dominantRegime", 
+                 "amp0" = "amp2yr_notDom",
+                 "amp1" = "amp2yr_dom",
+                 "mort0" = "mort2yr_notDom",
+                 "mort1" = "mort2yr_dom",
+                 "woundRecur0" = "recur2yr_notDom",
+                 "woundRecur1" = "recur2yr_dom",
+                 "censorRate")) 
+simParameters2 <- left_join(simParameters2, trueDelta2, 
+          by = c("dominantRegime", 
+                 "amp0" = "amp2yr_notDom",
+                 "amp1" = "amp2yr_dom",
+                 "mort0" = "mort2yr_notDom",
+                 "mort1" = "mort2yr_dom",
+                 "woundRecur0" = "recur2yr_notDom",
+                 "woundRecur1" = "recur2yr_dom",
+                 "censorRate")) 
+
+simParameters3 <- left_join(simParameters3, trueDelta3, 
+          by = c("dominantRegime", 
+                 "amp0" = "amp2yr_notDom",
+                 "amp1" = "amp2yr_dom",
+                 "mort0" = "mort2yr_notDom",
+                 "mort1" = "mort2yr_dom",
+                 "woundRecur0" = "recur2yr_notDom",
+                 "woundRecur1" = "recur2yr_dom",
+                 "censorRate")) 
+
+simParameters <- bind_rows(simParameters1, simParameters2, simParameters3)
+rawSim <- bind_rows(rawSim1, rawSim2, rawSim3)
+
+fullSim <- left_join(rawSim %>%
+                       select(-l), 
+                     simParameters, 
+                     by = c("mort2yr_dom" = "mort1",
+                            "mort2yr_notDom" = "mort0",
+                            "recur2yr_dom" = "woundRecur1",
+                            "recur2yr_notDom" = "woundRecur0",
+                            "amp2yr_dom" = "amp1",
+                            "amp2yr_notDom" = "amp0",
+                            "censorRate",
+                            "dominantRegime"))
+
+
+names(fullSim)
+powerDF <- fullSim %>%
+  ungroup() %>%
+  group_by(mort2yr_dom, mort2yr_notDom, recur2yr_dom, recur2yr_notDom,
+           amp2yr_dom, amp2yr_notDom, dominantRegime, mu_dom, mu_notdom) %>% 
+  summarize(mean1 = mean(regimeMean1), 
+            mean2 = mean(regimeMean2),
+            mean3 = mean(regimeMean3),
+            mean4 = mean(regimeMean4),
+            mean5 = mean(regimeMean5),
+            mean6 = mean(regimeMean6),
+            meanSE1 = mean(regimeSE1),
+            meanSE2 = mean(regimeSE2),
+            meanSE3 = mean(regimeSE3),
+            meanSE4 = mean(regimeSE4),
+            meanSE5 = mean(regimeSE5),
+            meanSE6 = mean(regimeSE6),
+            power = sum(pvalue <= 0.05)/1000) %>%
+  ungroup() %>%
+  mutate(delta_abs = abs(mu_dom - mu_notdom))
+
+writexl::write_xlsx(x = powerDF, path = "../2_pipeline/5_aim1bPower_powerDF.xlsx")
+
+powerPlot1b <- powerDF %>%
+  mutate(dominantRegime = as.character(dominantRegime)) %>%
+  ggplot(aes(x = delta_abs, y = power, color = dominantRegime)) +
+  geom_hline(aes(yintercept = 0.8), color = "gray") +
+  # geom_point() +
+  geom_smooth(se = FALSE, span = 1.5) +
+  theme_minimal() +
+  scale_x_continuous(name = "Absolute difference in wound-free survival (weeks)", 
+                     breaks = seq(from = 14, to = 56, by = 7), 
+                     labels = seq(from = 2, to = 8),
+                     limits = c(14, 56)) +
+  scale_y_continuous(name = "Power (%)",
+                     breaks = seq(from = 0, to = 1, by = 0.2),
+                     labels = seq(from = 0, to = 100, by = 20),
+                     limits = c(0, 1)) +
+  scale_color_discrete(name = "Embedded regime \nof focus")
+
+powerPlot1b
+
+ggsave(plot = powerPlot1b, filename = "../2_pipeline/5_aim1bPower_plot.png", 
+       device = "png", bg = "white", width = 7, height = 4, units = "in")
+  
+```
+
