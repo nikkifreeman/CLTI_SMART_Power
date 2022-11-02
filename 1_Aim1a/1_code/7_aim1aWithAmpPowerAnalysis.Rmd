@@ -1,0 +1,59 @@
+---
+title: "Aim 1a Power analysis"
+output: html_notebook
+---
+
+```{r set-up, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE)
+```
+
+```{r}
+library(tidyverse)
+
+simResultsFileNames <- str_subset(list.files("../2_pipeline"), "8_aim1a")
+
+# Calculate the power across the simulation analyses
+out <- data.frame()
+
+for(fileName in simResultsFileNames){
+  df <- read_csv(paste0("../2_pipeline/", fileName), show_col_types = FALSE) %>% 
+    group_by(N, mort0, mort1, recur0, recur1, amp0, amp1) %>%
+    summarise(twoSidedPower = sum(pvalue <= 0.05)/1000,
+              avgHalfCIwidth = mean((CI_upper - CI_lower)/2),
+              avgPsi = mean(psi)) %>%
+    mutate(se = avgHalfCIwidth*(1/1.96)) %>%
+    mutate(oneSidedPower1 = pnorm(avgPsi, mean = 0, sd = se, lower.tail = TRUE),
+           oneSidedPower2 = pnorm(avgPsi, mean = 0, sd = se, lower.tail = FALSE))
+  
+  out <- bind_rows(out, df)
+}
+
+out <- out %>% mutate(oneSidedPower = if_else(avgPsi < 0, oneSidedPower2, oneSidedPower1),
+                      betterArm = if_else(avgPsi < 0, 0, 1))
+  
+```
+
+
+```{r}
+# Load the true delta
+trueDelta <- read_csv("../2_pipeline/5_aim1aWithAmpTrueDelta.csv")
+
+# Merge the true deltas with the power
+powerDF <- left_join(out, trueDelta, 
+                     by = c("mort0" = "mort2yr0",
+                            "mort1" = "mort2yr1",
+                            "recur0" = "woundRecur0",
+                            "recur1" = "woundRecur1",
+                            "amp0" = "amp0",
+                            "amp1" = "amp1"))
+
+# Filter to see where we have good power
+powerDF %>%
+  filter(oneSidedPower >= 0.8) %>%
+  filter(N == 650) %>%
+  arrange(oneSidedPower) %>%
+  write_csv("../2_pipeline/7_aim1aWithAmpPower_650.csv")
+
+```
+
+

@@ -40,12 +40,12 @@ set.seed(5678)
 for(i in 1:nrow(parameterGrid_withAmp)){
   simData <- simulateDataAim1aWithAmp_exponential(
     N = 50000, p_trt1 = 0.5, 
-    mort0 = parameterGrid$mort2yr0[i], 
-    mort1 = parameterGrid$mort2yr1[i], 
-    recur0 = parameterGrid$woundRecur0[i], 
-    recur1 = parameterGrid$woundRecur1[i],
-    amp0 = parameterGrid$amp2yr0[i],
-    amp1 = parameterGrid$amp2yr1[i],
+    mort0 = parameterGrid_withAmp$mort2yr0[i], 
+    mort1 = parameterGrid_withAmp$mort2yr1[i], 
+    recur0 = parameterGrid_withAmp$woundRecur0[i], 
+    recur1 = parameterGrid_withAmp$woundRecur1[i],
+    amp0 = parameterGrid_withAmp$amp2yr0[i],
+    amp1 = parameterGrid_withAmp$amp2yr1[i],
     C_L = C_L, 
     beta_mort = rep(0, 4), 
     beta_recur = rep(0, 4),
@@ -55,6 +55,9 @@ for(i in 1:nrow(parameterGrid_withAmp)){
 }
 toc()
 
-readr::write_csv(x = parameterGrid, file = "../2_pipeline/5_aim1aWithAmpTrueDelta.csv")
 
-
+if(str_detect(getwd(), "resubmission")){
+  readr::write_csv(x = parameterGrid_withAmp, file = "./1_Aim1a/2_pipeline/5_aim1aWithAmpTrueDelta.csv")
+} else{
+  readr::write_csv(x = parameterGrid_withAmp, file = "../2_pipeline/5_aim1aWithAmpTrueDelta.csv")
+}
